@@ -303,7 +303,8 @@ body::before{
   padding:24px 24px 48px;
   display:grid;
   grid-template-columns:320px 1fr;
-  grid-template-rows:auto auto auto 1fr;
+  grid-template-rows:auto auto 1fr;
+  min-height:calc(100vh - 54px);
   gap:18px;
 }
 
@@ -420,7 +421,7 @@ canvas#donutChart{max-width:160px;max-height:160px}
 .btn-sky:hover{background:rgba(56,189,248,.08);border-color:var(--sky)}
 
 /* ── Log panel ── */
-.log-panel{grid-column:1/-1}
+.log-panel{display:flex;flex-direction:column;overflow:hidden;}
 .log-ph{flex-direction:column;align-items:stretch;gap:8px;padding-bottom:10px}
 .log-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .log-toolbar-right{display:flex;gap:6px;align-items:center}
@@ -442,7 +443,7 @@ canvas#donutChart{max-width:160px;max-height:160px}
 .tf.on{color:var(--cyan);border-color:rgba(34,211,238,.35);background:rgba(34,211,238,.07)}
 
 /* ── Log table ── */
-.log-table-wrap{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.log-table-wrap{flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0}
 .log-thead{
   display:grid;grid-template-columns:140px 64px 1fr;
   padding:6px 14px;border-bottom:1px solid var(--line);
@@ -452,7 +453,7 @@ canvas#donutChart{max-width:160px;max-height:160px}
 .log-body{
   flex:1;overflow-y:auto;
   scrollbar-width:thin;scrollbar-color:var(--bg5) transparent;
-  min-height:320px;max-height:420px;
+  flex:1;
 }
 .log-body::-webkit-scrollbar{width:3px}
 .log-body::-webkit-scrollbar-thumb{background:var(--bg5);border-radius:2px}
@@ -621,7 +622,7 @@ canvas#donutChart{max-width:160px;max-height:160px}
   </div>
 
   <!-- Left: Rules -->
-  <div class="panel" style="grid-row:3/5">
+  <div class="panel" style="height:100%">
     <div class="ph">
       <div class="pt"><div class="pt-dot"></div>Logging Rules</div>
       <span style="font-size:10px;color:var(--text3)">toggle to activate</span>
@@ -636,7 +637,7 @@ canvas#donutChart{max-width:160px;max-height:160px}
   </div>
 
   <!-- Right: Log panel -->
-  <div class="panel log-panel">
+  <div class="panel log-panel" style="height:100%">
     <div class="ph log-ph">
       <div class="log-toolbar">
         <div class="pt"><div class="pt-dot"></div>Live Log Stream</div>
@@ -663,10 +664,10 @@ canvas#donutChart{max-width:160px;max-height:160px}
     <div class="pagination">
       <span class="pg-info" id="pg-info">—</span>
       <select class="pg-size" id="pg-size" onchange="changePageSize()">
-        <option value="25">25/page</option>
-        <option value="50" selected>50/page</option>
+        <option value="10">10/page</option>
+        <option value="20" selected>20/page</option>
+        <option value="50">50/page</option>
         <option value="100">100/page</option>
-        <option value="200">200/page</option>
       </select>
       <button class="pg-btn" id="pg-prev" onclick="goPage(curPage-1)">‹</button>
       <div id="pg-nums" style="display:flex;gap:4px"></div>
@@ -698,7 +699,7 @@ canvas#donutChart{max-width:160px;max-height:160px}
 // ── Config ────────────────────────────────────────────────────────────────────
 const P = __PROFILES__;
 const TAG_COLORS = __TAG_COLORS__;
-let allLines = [], filtered = [], curPage = 1, pageSize = 50;
+let allLines = [], filtered = [], curPage = 1, pageSize = 20;
 let activeTag = null;
 let actChart = null, donutChart = null;
 let statusCache = {};
