@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IPTables Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #090c10;
+    --bg2: #0d1117;
+    --bg3: #161b22;
+    --bg4: #1c2128;
+    --border: #21262d;
+    --border2: #30363d;
+    --text: #e6edf3;
+    --text2: #8b949e;
+    --text3: #484f58;
+    --green: #00ff88;
+    --green-dim: #0d3320;
+    --blue: #00aaff;
+    --blue-dim: #0a1f33;
+    --red: #ff4757;
+    --red-dim: #2d0a0d;
+    --yellow: #ffd93d;
+    --yellow-dim: #2d2200;
+    --cyan: #4ecdc4;
+    --purple: #c678dd;
+    --orange: #ffaa00;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Scanline effect */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.05) 2px,
+      rgba(0,0,0,0.05) 4px
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 24px 60px;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* ─── Header ─────────────────────────────────────── */
+  header {
+    padding: 32px 0 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .logo-icon {
+    width: 52px;
+    height: 52px;
+    background: linear-gradient(135deg, var(--green), var(--cyan));
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 0 30px rgba(0,255,136,0.3);
+    animation: pulse-glow 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(0,255,136,0.3); }
+    50% { box-shadow: 0 0 40px rgba(0,255,136,0.6); }
+  }
+
+  .logo-text h1 {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .logo-text p {
+    font-size: 11px;
+    color: var(--green);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .header-stats {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .stat-badge {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 8px 16px;
+    text-align: center;
+    min-width: 80px;
+  }
+
+  .stat-badge .val {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--green);
+    font-family: 'Rajdhani', sans-serif;
+    display: block;
+  }
+
+  .stat-badge .lbl {
+    font-size: 9px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+  }
+
+  /* ─── Status Bar ──────────────────────────────────── */
+  .status-bar {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text2);
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text3);
+    flex-shrink: 0;
+  }
+
+  .status-dot.active {
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: blink 2s ease-in-out infinite;
+  }
+
+  .status-dot.warn { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+  .status-dot.error { background: var(--red); box-shadow: 0 0 8px var(--red); }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ─── Actions Bar ─────────────────────────────────── */
+  .actions-bar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border2);
+    background: var(--bg3);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 500;
+  }
+
+  .btn:hover { background: var(--bg4); border-color: var(--text3); transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+
+  .btn-danger {
+    border-color: rgba(255,71,87,0.4);
+    color: var(--red);
+  }
+  .btn-danger:hover { background: var(--red-dim); border-color: var(--red); box-shadow: 0 0 20px rgba(255,71,87,0.2); }
+
+  .btn-success {
+    border-color: rgba(0,255,136,0.4);
+    color: var(--green);
+  }
+  .btn-success:hover { background: var(--green-dim); border-color: var(--green); box-shadow: 0 0 20px rgba(0,255,136,0.2); }
+
+  .btn-info {
+    border-color: rgba(0,170,255,0.4);
+    color: var(--blue);
+  }
+  .btn-info:hover { background: var(--blue-dim); border-color: var(--blue); box-shadow: 0 0 20px rgba(0,170,255,0.2); }
+
+  /* ─── Layout Grid ──────────────────────────────────── */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+  /* ─── Section ──────────────────────────────────────── */
+  .section {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .section-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg3);
+  }
+
+  .section-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-title .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+  }
+
+  /* ─── Rule Cards ────────────────────────────────────── */
+  .rules-grid {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .rule-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: all 0.25s;
+    cursor: default;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .rule-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--border2);
+    transition: all 0.3s;
+  }
+
+  .rule-card.active::before {
+    background: var(--rule-color, var(--green));
+    box-shadow: 2px 0 12px var(--rule-color, var(--green));
+  }
+
+  .rule-card.active {
+    border-color: color-mix(in srgb, var(--rule-color, var(--green)) 30%, transparent);
+    background: color-mix(in srgb, var(--rule-color, var(--green)) 5%, var(--bg3));
+  }
+
+  .rule-icon {
+    font-size: 22px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg4);
+    border-radius: 8px;
+    border: 1px solid var(--border2);
+    flex-shrink: 0;
+    font-style: normal;
+  }
+
+  .rule-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .rule-name {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .rule-desc {
+    font-size: 10px;
+    color: var(--text3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .rule-chain {
+    font-size: 9px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .chain-INPUT { background: rgba(0,255,136,0.1); color: var(--green); border: 1px solid rgba(0,255,136,0.2); }
+  .chain-OUTPUT { background: rgba(0,170,255,0.1); color: var(--blue); border: 1px solid rgba(0,170,255,0.2); }
+  .chain-FORWARD { background: rgba(255,170,0,0.1); color: var(--orange); border: 1px solid rgba(255,170,0,0.2); }
+
+  /* ─── Toggle Switch ──────────────────────────────────── */
+  .toggle-wrap {
+    flex-shrink: 0;
+  }
+
+  .toggle {
+    position: relative;
+    width: 48px;
+    height: 26px;
+    cursor: pointer;
+  }
+
+  .toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+  }
+
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 26px;
+    transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  .toggle-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--text3);
+    transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+
+  .toggle input:checked ~ .toggle-track {
+    background: color-mix(in srgb, var(--toggle-color, var(--green)) 20%, transparent);
+    border-color: var(--toggle-color, var(--green));
+  }
+
+  .toggle input:checked ~ .toggle-thumb {
+    transform: translateX(22px);
+    background: var(--toggle-color, var(--green));
+    box-shadow: 0 0 10px var(--toggle-color, var(--green));
+  }
+
+  .toggle.loading .toggle-thumb {
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    from { transform: translateX(var(--tx, 0px)) rotate(0deg); }
+    to { transform: translateX(var(--tx, 0px)) rotate(360deg); }
+  }
+
+  /* ─── Log Viewer ────────────────────────────────────── */
+  .log-section {
+    grid-column: 1 / -1;
+  }
+
+  .log-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .log-filter {
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 6px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 200px;
+  }
+
+  .log-filter:focus { border-color: var(--green); }
+  .log-filter::placeholder { color: var(--text3); }
+
+  .log-body {
+    height: 380px;
+    overflow-y: auto;
+    padding: 16px;
+    font-size: 11px;
+    line-height: 1.8;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border2) transparent;
+  }
+
+  .log-body::-webkit-scrollbar { width: 6px; }
+  .log-body::-webkit-scrollbar-track { background: transparent; }
+  .log-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  .log-entry {
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-family: 'JetBrains Mono', monospace;
+    white-space: pre-wrap;
+    word-break: break-all;
+    transition: background 0.15s;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-bottom: 2px;
+  }
+
+  .log-entry:hover { background: rgba(255,255,255,0.04); }
+
+  .log-entry .ts { color: var(--text3); }
+  .log-entry .host { color: var(--purple); }
+  .log-entry .tag-INPUT { color: var(--green); font-weight: 600; }
+  .log-entry .tag-OUTPUT { color: var(--blue); font-weight: 600; }
+  .log-entry .tag-FORWARD { color: var(--orange); font-weight: 600; }
+  .log-entry .tag-HTTP { color: var(--red); font-weight: 600; }
+  .log-entry .tag-HTTPS { color: var(--cyan); font-weight: 600; }
+  .log-entry .tag-DNS { color: var(--yellow); font-weight: 600; }
+  .log-entry .tag-SSH { color: var(--yellow); font-weight: 600; }
+  .log-entry .tag-ICMP { color: #ff8b94; font-weight: 600; }
+  .log-entry .tag-DROP { color: var(--red); font-weight: 600; }
+  .log-entry .tag-NEW { color: #7bed9f; font-weight: 600; }
+  .log-entry .kv { color: var(--text2); }
+  .log-entry .src { color: #ff9f43; }
+  .log-entry .dst { color: #48dbfb; }
+  .log-entry .proto { color: var(--purple); }
+
+  .log-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 12px;
+    color: var(--text3);
+    font-size: 13px;
+  }
+
+  .log-empty .ico { font-size: 48px; opacity: 0.3; }
+
+  /* ─── Toast ──────────────────────────────────────────── */
+  .toasts {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 9999;
+    pointer-events: none;
+  }
+
+  .toast {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 12px 18px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: toast-in 0.3s ease;
+    pointer-events: all;
+    min-width: 260px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+
+  .toast.success { border-color: rgba(0,255,136,0.4); }
+  .toast.error { border-color: rgba(255,71,87,0.4); }
+  .toast.info { border-color: rgba(0,170,255,0.4); }
+
+  .toast-icon { font-size: 16px; }
+  .toast-out { animation: toast-out 0.3s ease forwards; }
+
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes toast-out {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(20px); }
+  }
+
+  /* ─── Modal ──────────────────────────────────────────── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.show { display: flex; }
+
+  .modal {
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 16px;
+    padding: 32px;
+    max-width: 420px;
+    width: 90%;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+    animation: modal-in 0.25s ease;
+  }
+
+  @keyframes modal-in {
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .modal h2 {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    color: var(--red);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .modal p { color: var(--text2); font-size: 13px; line-height: 1.7; margin-bottom: 24px; }
+
+  .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
+
+  /* ─── Auto-refresh indicator ─────────────────────────── */
+  .refresh-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: var(--text3);
+  }
+
+  .refresh-spinner {
+    width: 10px;
+    height: 10px;
+    border: 1.5px solid var(--border2);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin2 1s linear infinite;
+  }
+
+  @keyframes spin2 { to { transform: rotate(360deg); } }
+
+  .section-full { grid-column: 1 / -1; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🔥</div>
+      <div class="logo-text">
+        <h1>IPTables Manager</h1>
+        <p>Packet Logging Control Panel</p>
+      </div>
+    </div>
+    <div class="header-stats">
+      <div class="stat-badge">
+        <span class="val" id="stat-active">—</span>
+        <span class="lbl">Active Rules</span>
+      </div>
+      <div class="stat-badge">
+        <span class="val" id="stat-logs">—</span>
+        <span class="lbl">Log Entries</span>
+      </div>
+      <div class="stat-badge">
+        <span class="val" id="stat-size">—</span>
+        <span class="lbl">Log Size</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <div class="status-item">
+      <div class="status-dot active" id="dot-input"></div>
+      <span>INPUT: <strong id="count-INPUT">0</strong> LOG rules</span>
+    </div>
+    <div class="status-item">
+      <div class="status-dot" id="dot-output"></div>
+      <span>OUTPUT: <strong id="count-OUTPUT">0</strong> LOG rules</span>
+    </div>
+    <div class="status-item">
+      <div class="status-dot" id="dot-forward"></div>
+      <span>FORWARD: <strong id="count-FORWARD">0</strong> LOG rules</span>
+    </div>
+    <div class="status-item" style="margin-left:auto">
+      <div class="refresh-indicator">
+        <div class="refresh-spinner"></div>
+        <span>Auto-refresh: 5s</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="actions-bar">
+    <button class="btn btn-danger" onclick="confirmClearAll()">
+      ⊘ Clear All Rules
+    </button>
+    <button class="btn btn-success" onclick="enableAll()">
+      ↑ Enable All
+    </button>
+    <button class="btn btn-info" onclick="saveRules()">
+      💾 Save Rules (Persist)
+    </button>
+    <button class="btn" onclick="refreshStatus()">
+      ⟳ Refresh Status
+    </button>
+  </div>
+
+  <!-- Main Grid -->
+  <div class="layout">
+
+    <!-- Rules Panel -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">
+          <div class="dot"></div>
+          Logging Rules
+        </div>
+        <span style="font-size:10px;color:var(--text3)">Toggle to enable/disable</span>
+      </div>
+      <div class="rules-grid" id="rules-grid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- Quick Info Panel -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">
+          <div class="dot"></div>
+          Chain Overview
+        </div>
+      </div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
+
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">How it works</div>
+          <div style="font-size:11px;color:var(--text2);line-height:1.8">
+            Rules are inserted at <span style="color:var(--green)">position 1</span> (top) of each chain, <em>before</em> UFW rules, ensuring all packets are captured.<br><br>
+            Logs are written to <span style="color:var(--cyan)">/var/log/iptables.log</span> via rsyslog.<br><br>
+            Toggle switches add/remove <code style="color:var(--yellow)">-j LOG</code> rules. The <code style="color:var(--yellow)">LOG</code> target never drops packets — it only copies metadata.
+          </div>
+        </div>
+
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px">Chain Status</div>
+          <div style="display:flex;flex-direction:column;gap:8px" id="chain-detail">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span class="rule-chain chain-INPUT">INPUT</span>
+              <span style="font-size:11px;color:var(--text2)" id="detail-INPUT">— rules</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span class="rule-chain chain-OUTPUT">OUTPUT</span>
+              <span style="font-size:11px;color:var(--text2)" id="detail-OUTPUT">— rules</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span class="rule-chain chain-FORWARD">FORWARD</span>
+              <span style="font-size:11px;color:var(--text2)" id="detail-FORWARD">— rules</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px">
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px">Persistence</div>
+          <div style="font-size:11px;color:var(--text2);line-height:1.7">
+            State is saved to <span style="color:var(--cyan)">/etc/iptables-manager-state.json</span><br>
+            Press <span style="color:var(--green)">Save Rules</span> to persist to <span style="color:var(--cyan)">/etc/iptables/rules.v4</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Log Viewer -->
+    <div class="section section-full">
+      <div class="section-header">
+        <div class="section-title">
+          <div class="dot"></div>
+          Live Log Viewer
+        </div>
+        <div class="log-controls">
+          <input class="log-filter" type="text" id="log-filter" placeholder="Filter logs..." oninput="filterLogs()" />
+          <button class="btn" style="font-size:10px;padding:6px 14px" onclick="loadLogs()">⟳ Reload</button>
+          <button class="btn btn-danger" style="font-size:10px;padding:6px 14px" onclick="clearLogFile()">🗑 Clear Log File</button>
+          <label style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--text2);cursor:pointer">
+            <input type="checkbox" id="auto-scroll" checked style="accent-color:var(--green)"> Auto-scroll
+          </label>
+        </div>
+      </div>
+      <div class="log-body" id="log-body">
+        <div class="log-empty">
+          <div class="ico">📋</div>
+          <div>Loading logs...</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h2>⊘ Clear All Rules</h2>
+    <p>This will remove <strong>all</strong> iptables LOG rules from INPUT, OUTPUT, and FORWARD chains immediately.<br><br>The log file will <em>not</em> be cleared — only the iptables rules will be removed.</p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="clearAll()">Yes, Clear All</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toasts -->
+<div class="toasts" id="toasts"></div>
+
+<script>
+const PROFILES = {{ profiles|tojson }};
+const LOG_FILE = "/var/log/iptables.log";
+let allLogLines = [];
+let statusData = {};
+
+// ─── Render Rules ──────────────────────────────────────────────────────────
+function renderRules(activeMap) {
+  const grid = document.getElementById('rules-grid');
+  grid.innerHTML = '';
+
+  for (const [id, profile] of Object.entries(PROFILES)) {
+    const active = activeMap[id] || false;
+    const color = profile.color;
+
+    const card = document.createElement('div');
+    card.className = `rule-card ${active ? 'active' : ''}`;
+    card.id = `card-${id}`;
+    card.style.setProperty('--rule-color', color);
+
+    card.innerHTML = `
+      <div class="rule-icon">${profile.icon}</div>
+      <div class="rule-info">
+        <div class="rule-name">${profile.name}</div>
+        <div class="rule-desc">${profile.description}</div>
+      </div>
+      <span class="rule-chain chain-${profile.chain}">${profile.chain}</span>
+      <div class="toggle-wrap">
+        <label class="toggle" style="--toggle-color: ${color}" title="${active ? 'Disable' : 'Enable'} ${profile.name}">
+          <input type="checkbox" id="toggle-${id}" ${active ? 'checked' : ''} onchange="toggleRule('${id}', this.checked)">
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+    `;
+    grid.appendChild(card);
+  }
+}
+
+// ─── Toggle Rule ───────────────────────────────────────────────────────────
+async function toggleRule(id, enable) {
+  const toggle = document.getElementById(`toggle-${id}`);
+  const card = document.getElementById(`card-${id}`);
+
+  toggle.disabled = true;
+  toggle.parentElement.classList.add('loading');
+
+  try {
+    const res = await fetch(`/api/toggle/${id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enable })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      toggle.checked = data.active;
+      card.classList.toggle('active', data.active);
+      toast(data.active ? `✅ ${PROFILES[id].name} enabled` : `⊘ ${PROFILES[id].name} disabled`,
+            data.active ? 'success' : 'info');
+    } else {
+      toggle.checked = !enable;
+      toast(`❌ Failed: ${data.message}`, 'error');
+    }
+  } catch (e) {
+    toggle.checked = !enable;
+    toast('❌ Network error', 'error');
+  }
+
+  toggle.disabled = false;
+  toggle.parentElement.classList.remove('loading');
+  setTimeout(refreshStatus, 500);
+}
+
+// ─── Status Refresh ────────────────────────────────────────────────────────
+async function refreshStatus() {
+  try {
+    const res = await fetch('/api/status');
+    const data = await res.json();
+    statusData = data;
+
+    // Update toggles + cards
+    for (const [id, active] of Object.entries(data.rules)) {
+      const toggle = document.getElementById(`toggle-${id}`);
+      const card = document.getElementById(`card-${id}`);
+      if (toggle) toggle.checked = active;
+      if (card) card.classList.toggle('active', active);
+    }
+
+    // Count active
+    const activeCount = Object.values(data.rules).filter(Boolean).length;
+    document.getElementById('stat-active').textContent = activeCount;
+
+    // Chain counts
+    const counts = data.rule_counts || {};
+    for (const chain of ['INPUT', 'OUTPUT', 'FORWARD']) {
+      const c = counts[chain] || 0;
+      const el = document.getElementById(`count-${chain}`);
+      const detail = document.getElementById(`detail-${chain}`);
+      const dot = document.getElementById(`dot-${chain.toLowerCase()}`) ||
+                  document.getElementById(`dot-input`);
+      if (el) el.textContent = c;
+      if (detail) detail.textContent = `${c} LOG rule${c !== 1 ? 's' : ''}`;
+    }
+
+    // Dot states
+    for (const chain of ['INPUT', 'OUTPUT', 'FORWARD']) {
+      const c = counts[chain] || 0;
+      const dotId = `dot-${chain.toLowerCase()}`;
+      const dot = document.getElementById(dotId);
+      if (dot) dot.className = `status-dot ${c > 0 ? 'active' : ''}`;
+    }
+
+    // Log size
+    const size = data.log_size || 0;
+    document.getElementById('stat-size').textContent = formatBytes(size);
+
+  } catch (e) {
+    console.error('Status refresh failed', e);
+  }
+}
+
+// ─── Load Logs ─────────────────────────────────────────────────────────────
+async function loadLogs() {
+  try {
+    const res = await fetch('/api/logs?n=300');
+    const data = await res.json();
+    allLogLines = data.lines || [];
+    document.getElementById('stat-logs').textContent = allLogLines.length;
+    renderLogs(allLogLines);
+  } catch (e) {
+    console.error('Log load failed', e);
+  }
+}
+
+function filterLogs() {
+  const q = document.getElementById('log-filter').value.toLowerCase();
+  const filtered = q ? allLogLines.filter(l => l.toLowerCase().includes(q)) : allLogLines;
+  renderLogs(filtered);
+}
+
+function renderLogs(lines) {
+  const body = document.getElementById('log-body');
+  const autoScroll = document.getElementById('auto-scroll').checked;
+
+  if (!lines.length) {
+    body.innerHTML = `<div class="log-empty"><div class="ico">📋</div><div>No log entries found</div><div style="font-size:10px;margin-top:4px">Enable a rule above to start logging</div></div>`;
+    return;
+  }
+
+  body.innerHTML = lines.map(line => formatLogLine(line)).join('');
+
+  if (autoScroll) body.scrollTop = body.scrollHeight;
+}
+
+function formatLogLine(line) {
+  // Colorize parts
+  let html = line
+    .replace(/^(\S+)/, '<span class="ts">$1</span>')
+    .replace(/\s(\S+)\s+kernel:/, ' <span class="host">$1</span> kernel:')
+    .replace(/\[IPTABLES (\w+)\]/, (m, tag) => `[<span class="tag-${tag}">IPTABLES ${tag}</span>]`)
+    .replace(/SRC=([\d.]+)/, 'SRC=<span class="src">$1</span>')
+    .replace(/DST=([\d.]+)/, 'DST=<span class="dst">$1</span>')
+    .replace(/PROTO=(\w+)/, 'PROTO=<span class="proto">$1</span>');
+  return `<div class="log-entry">${html}</div>`;
+}
+
+// ─── Actions ────────────────────────────────────────────────────────────────
+function confirmClearAll() {
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('show');
+}
+
+async function clearAll() {
+  closeModal();
+  try {
+    const res = await fetch('/api/clear-all', { method: 'POST' });
+    const data = await res.json();
+    toast(`⊘ ${data.message}`, 'success');
+    await refreshStatus();
+    renderRules(Object.fromEntries(Object.keys(PROFILES).map(k => [k, false])));
+  } catch (e) {
+    toast('❌ Clear failed', 'error');
+  }
+}
+
+async function enableAll() {
+  for (const id of Object.keys(PROFILES)) {
+    await toggleRule(id, true);
+  }
+  toast('✅ All rules enabled', 'success');
+}
+
+async function saveRules() {
+  try {
+    const res = await fetch('/api/save-rules', { method: 'POST' });
+    const data = await res.json();
+    toast(data.success ? `💾 ${data.message}` : `❌ ${data.message}`,
+          data.success ? 'success' : 'error');
+  } catch (e) {
+    toast('❌ Save failed', 'error');
+  }
+}
+
+async function clearLogFile() {
+  if (!confirm('Clear the iptables log file? This cannot be undone.')) return;
+  try {
+    const res = await fetch('/api/clear-log', { method: 'POST' });
+    const data = await res.json();
+    toast(data.success ? '🗑 Log file cleared' : `❌ ${data.message}`,
+          data.success ? 'success' : 'error');
+    allLogLines = [];
+    renderLogs([]);
+    document.getElementById('stat-logs').textContent = '0';
+    document.getElementById('stat-size').textContent = '0 B';
+  } catch (e) {
+    toast('❌ Clear failed', 'error');
+  }
+}
+
+// ─── Toast ─────────────────────────────────────────────────────────────────
+function toast(msg, type = 'info') {
+  const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span class="toast-icon">${icons[type]}</span><span>${msg}</span>`;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => {
+    el.classList.add('toast-out');
+    setTimeout(() => el.remove(), 300);
+  }, 3500);
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+function formatBytes(b) {
+  if (b < 1024) return `${b}B`;
+  if (b < 1048576) return `${(b/1024).toFixed(1)}KB`;
+  return `${(b/1048576).toFixed(1)}MB`;
+}
+
+// ─── Init & Auto-refresh ────────────────────────────────────────────────────
+async function init() {
+  // Initial render with empty state
+  renderRules(Object.fromEntries(Object.keys(PROFILES).map(k => [k, false])));
+  await refreshStatus();
+  // Re-render with actual state
+  if (statusData.rules) renderRules(statusData.rules);
+  await loadLogs();
+}
+
+init();
+
+// Auto-refresh every 5 seconds
+setInterval(async () => {
+  await refreshStatus();
+  if (statusData.rules) {
+    for (const [id, active] of Object.entries(statusData.rules)) {
+      const toggle = document.getElementById(`toggle-${id}`);
+      const card = document.getElementById(`card-${id}`);
+      if (toggle && !toggle.disabled) toggle.checked = active;
+      if (card) card.classList.toggle('active', active);
+    }
+  }
+  await loadLogs();
+}, 5000);
+</script>
+</body>
+</html>
